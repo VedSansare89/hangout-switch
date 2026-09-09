@@ -4,9 +4,6 @@ const STORAGE_KEY = "hangout-switch:session";
 
 export interface SavedRoomConnect {
   roomCode: string;
-  name: string;
-  avatarId: string;
-  passcode: string;
 }
 
 interface SavedSession {

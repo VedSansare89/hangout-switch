@@ -11,6 +11,7 @@ import {
   LogOut,
   Settings,
   Shield,
+  Shuffle,
   SlidersHorizontal,
   Volume2,
   VolumeX,
@@ -22,21 +23,29 @@ import { QuestionCard } from "@/components/question-card";
 import { MiniGamePicker } from "@/components/mini-game-picker";
 import { IntensityDialog } from "@/components/intensity-dialog";
 import { SettingsModal } from "@/components/settings-modal";
+import { SwitchModeConfirm } from "@/components/switch-mode-confirm";
 import { HistoryPanel } from "@/components/history-panel";
 import { PlayerList } from "@/components/player-list";
 import { getIntensityDef, intensityTheme } from "@/lib/intensity";
 import { getMiniGameById, getMiniGamesForMode } from "@/lib/mini-games";
 import { modeTheme } from "@/lib/mode-theme";
 import { roomShareUrl } from "@/lib/room-code";
-import { ClientMessage, RoomSnapshot } from "@/lib/room-types";
+import { PlayerRow, RoomRow } from "@/lib/room-types";
+import { Intensity, MiniGameId, Mode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface RoomScreenProps {
   roomCode: string;
-  snapshot: RoomSnapshot;
+  room: RoomRow;
+  players: PlayerRow[];
   isHost: boolean;
   connected: boolean;
-  onSend: (message: ClientMessage) => void;
+  onSetMode: (mode: Mode) => void;
+  onSetIntensity: (intensity: Intensity) => void;
+  onPickMiniGame: (id: MiniGameId) => void;
+  onNextQuestion: () => void;
+  onSkipQuestion: () => void;
+  onResetSession: () => void;
   onLeave: () => void;
   onOpenIdentity: () => void;
   soundEnabled: boolean;
@@ -45,27 +54,35 @@ interface RoomScreenProps {
 
 export function RoomScreen({
   roomCode,
-  snapshot,
+  room,
+  players,
   isHost,
   connected,
-  onSend,
+  onSetMode,
+  onSetIntensity,
+  onPickMiniGame,
+  onNextQuestion,
+  onSkipQuestion,
+  onResetSession,
   onLeave,
   onOpenIdentity,
   soundEnabled,
   onToggleSound,
 }: RoomScreenProps) {
-  const { room, players } = snapshot;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [intensityOpen, setIntensityOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [switchModeOpen, setSwitchModeOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const theme = modeTheme[room.mode];
   const intensityDef = getIntensityDef(room.intensity);
   const intensityColor = intensityTheme[room.intensity];
-  const currentGame = room.currentMiniGame ? (getMiniGameById(room.currentMiniGame) ?? null) : null;
-  const host = players.find((p) => p.id === room.hostId);
+  const currentGame = room.current_mini_game
+    ? (getMiniGameById(room.current_mini_game) ?? null)
+    : null;
+  const host = players.find((p) => p.id === room.host_id);
 
   function copyLink() {
     const url = roomShareUrl(roomCode);
@@ -122,7 +139,7 @@ export function RoomScreen({
         </div>
 
         <div className="px-3 pb-3">
-          <PlayerList players={players} hostId={room.hostId} />
+          <PlayerList players={players} hostId={room.host_id} />
         </div>
       </div>
 
@@ -151,7 +168,7 @@ export function RoomScreen({
         <QuestionCard
           miniGame={currentGame}
           intensity={room.intensity}
-          question={room.currentQuestion}
+          question={room.current_question_text}
           round={room.round}
         />
 
@@ -163,7 +180,7 @@ export function RoomScreen({
               <Button
                 size="xl"
                 variant="outline"
-                onClick={() => onSend({ type: "skip-question" })}
+                onClick={onSkipQuestion}
                 disabled={!currentGame}
                 className="gap-2 border-2 text-neutral-500 dark:text-neutral-300"
                 aria-label="Skip this question — safe word"
@@ -174,11 +191,7 @@ export function RoomScreen({
               <Button
                 size="xl"
                 variant="gradient"
-                onClick={() =>
-                  currentGame
-                    ? onSend({ type: "next-question" })
-                    : setPickerOpen(true)
-                }
+                onClick={currentGame ? onNextQuestion : () => setPickerOpen(true)}
                 className={cn("flex-1 gap-2 shadow-xl", theme.buttonGradient)}
               >
                 {currentGame ? "Next Question" : "Pick a Mini-Game"}
@@ -190,7 +203,14 @@ export function RoomScreen({
             </p>
           )}
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className={cn("grid gap-2", isHost ? "grid-cols-4" : "grid-cols-3")}>
+            {isHost && (
+              <ActionChip
+                icon={<Shuffle className="size-4" />}
+                label="Switch Mode"
+                onClick={() => setSwitchModeOpen(true)}
+              />
+            )}
             <ActionChip
               icon={<SlidersHorizontal className="size-4" />}
               label="Profile"
@@ -201,11 +221,7 @@ export function RoomScreen({
               label="History"
               onClick={() => setHistoryOpen(true)}
             />
-            <ActionChip
-              icon={<LogOut className="size-4" />}
-              label="Leave"
-              onClick={onLeave}
-            />
+            <ActionChip icon={<LogOut className="size-4" />} label="Leave" onClick={onLeave} />
           </div>
         </div>
       </div>
@@ -215,13 +231,13 @@ export function RoomScreen({
           mode={room.mode}
           open={pickerOpen}
           onOpenChange={setPickerOpen}
-          onPick={(id) => onSend({ type: "pick-mini-game", miniGame: id })}
+          onPick={onPickMiniGame}
           onRandom={() => {
             const games = getMiniGamesForMode(room.mode);
             const choice = games[Math.floor(Math.random() * games.length)];
-            if (choice) onSend({ type: "pick-mini-game", miniGame: choice.id });
+            if (choice) onPickMiniGame(choice.id);
           }}
-          currentMiniGame={room.currentMiniGame}
+          currentMiniGame={room.current_mini_game}
         />
       )}
 
@@ -230,7 +246,19 @@ export function RoomScreen({
           open={intensityOpen}
           onOpenChange={setIntensityOpen}
           intensity={room.intensity}
-          onChange={(intensity) => onSend({ type: "set-intensity", intensity })}
+          onChange={onSetIntensity}
+        />
+      )}
+
+      {isHost && (
+        <SwitchModeConfirm
+          open={switchModeOpen}
+          onOpenChange={setSwitchModeOpen}
+          currentMode={room.mode}
+          onConfirm={(next) => {
+            onSetMode(next);
+            setSwitchModeOpen(false);
+          }}
         />
       )}
 
@@ -239,8 +267,8 @@ export function RoomScreen({
       <HistoryPanel
         open={historyOpen}
         onOpenChange={setHistoryOpen}
-        playedQuestions={room.playedQuestions}
-        onResetSession={() => onSend({ type: "reset-session" })}
+        playedQuestions={room.played_question_texts}
+        onResetSession={onResetSession}
       />
     </div>
   );

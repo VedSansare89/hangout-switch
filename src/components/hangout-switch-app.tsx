@@ -19,8 +19,21 @@ import { loadSession, saveSession } from "@/lib/storage";
 import { getOrCreatePlayerIdentity, savePlayerIdentity } from "@/lib/player";
 import { playClickSound, playNewQuestionSound } from "@/lib/sounds";
 import { INTENSITIES } from "@/lib/intensity";
-import { generateRoomCode } from "@/lib/room-code";
+import { generateRoomCode, normalizeRoomCode } from "@/lib/room-code";
 import { useRoom } from "@/hooks/use-room";
+import {
+  RoomActionError,
+  createRoom,
+  joinRoom,
+  leaveRoom,
+  nextQuestion as rpcNextQuestion,
+  pickMiniGame as rpcPickMiniGame,
+  resetSession as rpcResetSession,
+  setRoomIntensity,
+  setRoomMode,
+  skipQuestion as rpcSkipQuestion,
+  updatePlayerProfile,
+} from "@/lib/room-actions";
 import { GameState, Intensity, MiniGameId, Mode, Screen } from "@/lib/types";
 
 function freshDefaultState(): GameState {
@@ -38,19 +51,12 @@ function freshDefaultState(): GameState {
   };
 }
 
-interface RoomConnectParams {
-  roomCode: string;
-  name: string;
-  avatarId: string;
-  passcode: string;
-}
+const JOIN_ERROR_MESSAGES: Record<string, string> = {
+  ROOM_NOT_FOUND: "That room code doesn't exist. Double-check it and try again.",
+  WRONG_PASSCODE: "Incorrect passcode.",
+};
 
-interface PendingRoomInit {
-  mode: Mode;
-  intensity: Intensity;
-  locked: boolean;
-  passcode: string;
-}
+const ROOM_LOAD_TIMEOUT_MS = 8000;
 
 interface HangoutSwitchAppProps {
   initialRoomCode?: string;
@@ -76,18 +82,17 @@ export function HangoutSwitchApp({ initialRoomCode }: HangoutSwitchAppProps) {
   const [pendingStart, setPendingStart] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  const [roomConnect, setRoomConnect] = useState<RoomConnectParams | null>(null);
-  const [pendingRoomInit, setPendingRoomInit] = useState<PendingRoomInit | null>(null);
+  const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
   const [needsPasscode, setNeedsPasscode] = useState(false);
+  const [roomTimedOut, setRoomTimedOut] = useState(false);
   const playerId = getOrCreatePlayerIdentity().id;
 
-  const { snapshot, connected, error, isHost, send: roomSend } = useRoom({
-    roomCode: roomConnect?.roomCode ?? "",
+  const { room, players, connected, isHost } = useRoom({
+    roomCode: roomCode ?? "",
     playerId,
-    name: roomConnect?.name ?? "",
-    avatarId: roomConnect?.avatarId ?? "fox",
-    passcode: roomConnect?.passcode ?? "",
-    enabled: !!roomConnect,
+    enabled: !!roomCode,
   });
 
   useEffect(() => {
@@ -99,7 +104,7 @@ export function HangoutSwitchApp({ initialRoomCode }: HangoutSwitchAppProps) {
     } else if (saved) {
       setGameState(saved.gameState);
       if (saved.screen === "room" && saved.roomConnect) {
-        setRoomConnect(saved.roomConnect);
+        setRoomCode(saved.roomConnect.roomCode);
         setScreen("room");
       } else {
         setScreen(saved.screen === "room" ? "home" : saved.screen);
@@ -116,35 +121,21 @@ export function HangoutSwitchApp({ initialRoomCode }: HangoutSwitchAppProps) {
       saveSession({
         screen,
         gameState,
-        roomConnect: screen === "room" ? roomConnect : null,
+        roomConnect: screen === "room" && roomCode ? { roomCode } : null,
       });
     }
-  }, [screen, gameState, hydrated, roomConnect]);
+  }, [screen, gameState, hydrated, roomCode]);
 
+  // If a room never loads (bad code, or the room was cleaned up), fall back
+  // to home instead of leaving the user on an infinite spinner.
   useEffect(() => {
-    if (snapshot && (screen === "create-room" || screen === "join-room")) {
-      setScreen("room");
+    if (screen !== "room" || room) {
+      setRoomTimedOut(false);
+      return;
     }
-  }, [snapshot, screen]);
-
-  useEffect(() => {
-    if (error === "Incorrect passcode.") {
-      setNeedsPasscode(true);
-      setRoomConnect(null);
-    }
-  }, [error]);
-
-  useEffect(() => {
-    if (connected && isHost && pendingRoomInit) {
-      roomSend({ type: "set-mode", mode: pendingRoomInit.mode });
-      roomSend({ type: "set-intensity", intensity: pendingRoomInit.intensity });
-      if (pendingRoomInit.locked) {
-        roomSend({ type: "set-lock", locked: true, passcode: pendingRoomInit.passcode });
-      }
-      setPendingRoomInit(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected, isHost, pendingRoomInit]);
+    const timer = setTimeout(() => setRoomTimedOut(true), ROOM_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [screen, room]);
 
   function drawQuestion(mode: Mode, intensity: Intensity, miniGame: MiniGameId, played: string[]) {
     const pool = getQuestionPool(mode, miniGame, intensity);
@@ -232,9 +223,8 @@ export function HangoutSwitchApp({ initialRoomCode }: HangoutSwitchAppProps) {
   function handleSaveIdentity(name: string, avatarId: string) {
     savePlayerIdentity({ id: playerId, name, avatarId });
     setGameState((s) => ({ ...s, hostName: name, hostAvatarId: avatarId }));
-    if (roomConnect) {
-      roomSend({ type: "update-profile", name, avatarId });
-      setRoomConnect((rc) => (rc ? { ...rc, name, avatarId } : rc));
+    if (roomCode) {
+      updatePlayerProfile(playerId, name, avatarId).catch(() => {});
     }
     if (pendingStart) {
       setPendingStart(false);
@@ -323,7 +313,9 @@ export function HangoutSwitchApp({ initialRoomCode }: HangoutSwitchAppProps) {
     setGameState((s) => ({ ...s, soundEnabled: !s.soundEnabled }));
   }
 
-  function handleCreateRoom(params: {
+  // ---- Room flow -----------------------------------------------------
+
+  async function handleCreateRoom(params: {
     mode: Mode;
     intensity: Intensity;
     name: string;
@@ -334,31 +326,71 @@ export function HangoutSwitchApp({ initialRoomCode }: HangoutSwitchAppProps) {
     playSound("click");
     savePlayerIdentity({ id: playerId, name: params.name, avatarId: params.avatarId });
     setGameState((s) => ({ ...s, hostName: params.name, hostAvatarId: params.avatarId }));
-    setNeedsPasscode(false);
-    setPendingRoomInit({
-      mode: params.mode,
-      intensity: params.intensity,
-      locked: params.locked,
-      passcode: params.passcode,
-    });
-    setRoomConnect({
-      roomCode: generateRoomCode(),
-      name: params.name,
-      avatarId: params.avatarId,
-      passcode: "",
-    });
+    setJoinError(null);
+    setJoining(true);
+
+    let code = generateRoomCode();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await createRoom({
+          code,
+          mode: params.mode,
+          intensity: params.intensity,
+          hostId: playerId,
+          hostName: params.name,
+          hostAvatarId: params.avatarId,
+          locked: params.locked,
+          passcode: params.locked ? params.passcode : undefined,
+        });
+        setJoining(false);
+        setRoomCode(code);
+        setScreen("room");
+        return;
+      } catch {
+        // Room code collision (extremely unlikely) — try a fresh code.
+        code = generateRoomCode();
+      }
+    }
+    setJoining(false);
+    setJoinError("Couldn't create a room right now. Please try again.");
   }
 
-  function handleJoinRoom(params: { roomCode: string; name: string; avatarId: string; passcode: string }) {
+  async function handleJoinRoom(params: {
+    roomCode: string;
+    name: string;
+    avatarId: string;
+    passcode: string;
+  }) {
     playSound("click");
+    const code = normalizeRoomCode(params.roomCode);
     savePlayerIdentity({ id: playerId, name: params.name, avatarId: params.avatarId });
     setGameState((s) => ({ ...s, hostName: params.name, hostAvatarId: params.avatarId }));
-    setRoomConnect(params);
+    setJoinError(null);
+    setJoining(true);
+
+    try {
+      await joinRoom({
+        code,
+        playerId,
+        name: params.name,
+        avatarId: params.avatarId,
+        passcode: params.passcode || undefined,
+      });
+      setJoining(false);
+      setRoomCode(code);
+      setScreen("room");
+    } catch (err) {
+      setJoining(false);
+      const roomErr = err instanceof RoomActionError ? err.code : "UNKNOWN";
+      if (roomErr === "WRONG_PASSCODE") setNeedsPasscode(true);
+      setJoinError(JOIN_ERROR_MESSAGES[roomErr] ?? "Something went wrong joining that room.");
+    }
   }
 
   function handleLeaveRoom() {
-    setRoomConnect(null);
-    setPendingRoomInit(null);
+    if (roomCode) leaveRoom(roomCode, playerId).catch(() => {});
+    setRoomCode(null);
+    setJoinError(null);
     setNeedsPasscode(false);
     setScreen("home");
   }
@@ -467,10 +499,10 @@ export function HangoutSwitchApp({ initialRoomCode }: HangoutSwitchAppProps) {
               initialName={gameState.hostName}
               initialAvatarId={gameState.hostAvatarId}
               needsPasscode={needsPasscode}
-              errorMessage={error}
-              connecting={!!roomConnect && !connected}
+              errorMessage={joinError}
+              connecting={joining}
               onBack={() => {
-                setRoomConnect(null);
+                setJoinError(null);
                 setNeedsPasscode(false);
                 setScreen("home");
               }}
@@ -479,7 +511,7 @@ export function HangoutSwitchApp({ initialRoomCode }: HangoutSwitchAppProps) {
           </motion.div>
         )}
 
-        {screen === "room" && !snapshot && (
+        {screen === "room" && !room && (
           <motion.div
             key="room-loading"
             initial={{ opacity: 0 }}
@@ -487,20 +519,36 @@ export function HangoutSwitchApp({ initialRoomCode }: HangoutSwitchAppProps) {
             exit={{ opacity: 0 }}
             className="flex min-h-[100dvh] flex-col items-center justify-center gap-3 bg-neutral-50 px-6 text-center dark:bg-neutral-950"
           >
-            <div className="size-8 animate-spin rounded-full border-4 border-neutral-300 border-t-neutral-700 dark:border-neutral-700 dark:border-t-neutral-200" />
-            <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">
-              Reconnecting to your room…
-            </p>
-            <button
-              onClick={handleLeaveRoom}
-              className="text-xs font-semibold text-neutral-400 underline underline-offset-2"
-            >
-              Back to home
-            </button>
+            {roomTimedOut ? (
+              <>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">
+                  Couldn&apos;t find that room. It may have expired.
+                </p>
+                <button
+                  onClick={handleLeaveRoom}
+                  className="text-xs font-semibold text-neutral-400 underline underline-offset-2"
+                >
+                  Back to home
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="size-8 animate-spin rounded-full border-4 border-neutral-300 border-t-neutral-700 dark:border-neutral-700 dark:border-t-neutral-200" />
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">
+                  Reconnecting to your room…
+                </p>
+                <button
+                  onClick={handleLeaveRoom}
+                  className="text-xs font-semibold text-neutral-400 underline underline-offset-2"
+                >
+                  Back to home
+                </button>
+              </>
+            )}
           </motion.div>
         )}
 
-        {screen === "room" && snapshot && (
+        {screen === "room" && room && roomCode && (
           <motion.div
             key="room"
             initial={{ opacity: 0, x: 24 }}
@@ -509,11 +557,17 @@ export function HangoutSwitchApp({ initialRoomCode }: HangoutSwitchAppProps) {
             transition={{ duration: 0.3, ease: "easeOut" }}
           >
             <RoomScreen
-              roomCode={roomConnect?.roomCode ?? snapshot.room.code}
-              snapshot={snapshot}
+              roomCode={roomCode}
+              room={room}
+              players={players}
               isHost={isHost}
               connected={connected}
-              onSend={roomSend}
+              onSetMode={(mode) => setRoomMode(roomCode, playerId, mode)}
+              onSetIntensity={(intensity) => setRoomIntensity(roomCode, playerId, intensity)}
+              onPickMiniGame={(id) => rpcPickMiniGame(roomCode, playerId, id)}
+              onNextQuestion={() => rpcNextQuestion(roomCode, playerId)}
+              onSkipQuestion={() => rpcSkipQuestion(roomCode, playerId)}
+              onResetSession={() => rpcResetSession(roomCode, playerId)}
               onLeave={handleLeaveRoom}
               onOpenIdentity={() => {
                 setPendingStart(false);

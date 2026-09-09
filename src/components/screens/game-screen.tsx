@@ -4,27 +4,19 @@ import { useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   Dices,
-  Heart,
   History,
-  PartyPopper,
   Shield,
   Shuffle,
   SlidersHorizontal,
   UsersRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { TopBar } from "@/components/top-bar";
 import { QuestionCard } from "@/components/question-card";
 import { MiniGamePicker } from "@/components/mini-game-picker";
 import { IntensityDialog } from "@/components/intensity-dialog";
 import { SettingsModal } from "@/components/settings-modal";
+import { SwitchModeConfirm } from "@/components/switch-mode-confirm";
 import { getMiniGameById } from "@/lib/mini-games";
 import { modeTheme } from "@/lib/mode-theme";
 import { GameState, Intensity, MiniGameId, Mode } from "@/lib/types";
@@ -196,43 +188,5 @@ function ActionChip({
       {icon}
       <span className="text-[11px] font-semibold">{label}</span>
     </motion.button>
-  );
-}
-
-function SwitchModeConfirm({
-  open,
-  onOpenChange,
-  currentMode,
-  onConfirm,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  currentMode: Mode;
-  onConfirm: (mode: Mode) => void;
-}) {
-  const target: Mode = currentMode === "friends" ? "couples" : "friends";
-  const targetTheme = modeTheme[target];
-  const TargetIcon = target === "friends" ? PartyPopper : Heart;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-5 sm:p-6">
-        <DialogHeader>
-          <DialogTitle>Switch to {targetTheme.label}?</DialogTitle>
-          <DialogDescription>
-            Your current mini-game and question will reset to fit the new mode.
-          </DialogDescription>
-        </DialogHeader>
-        <Button
-          size="lg"
-          variant="gradient"
-          onClick={() => onConfirm(target)}
-          className={cn("w-full gap-2", targetTheme.buttonGradient)}
-        >
-          <TargetIcon className="size-4.5" />
-          Switch to {targetTheme.label}
-        </Button>
-      </DialogContent>
-    </Dialog>
   );
 }

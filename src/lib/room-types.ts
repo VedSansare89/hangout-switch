@@ -1,43 +1,34 @@
 import { Intensity, MiniGameId, Mode } from "./types";
 
-export interface RoomPlayer {
-  id: string;
-  name: string;
-  avatarId: string;
-  connected: boolean;
-}
-
-export interface RoomState {
+/** Mirrors a row in the `rooms` table. */
+export interface RoomRow {
   code: string;
   mode: Mode;
   intensity: Intensity;
-  currentMiniGame: MiniGameId | null;
-  currentQuestion: string | null;
+  current_mini_game: MiniGameId | null;
+  current_question_id: string | null;
+  current_question_text: string | null;
   round: number;
-  playedQuestions: string[];
-  hostId: string | null;
+  played_question_ids: string[];
+  played_question_texts: string[];
+  host_id: string | null;
   locked: boolean;
-  createdAt: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Mirrors a row in the `players` table. */
+export interface PlayerRow {
+  id: string;
+  room_code: string;
+  name: string;
+  avatar_id: string;
+  is_host: boolean;
+  joined_at: string;
+  last_seen_at: string;
 }
 
 export interface RoomSnapshot {
-  room: RoomState;
-  players: RoomPlayer[];
+  room: RoomRow;
+  players: PlayerRow[];
 }
-
-/** Messages sent from a client to the party server. */
-export type ClientMessage =
-  | { type: "set-mode"; mode: Mode }
-  | { type: "set-intensity"; intensity: Intensity }
-  | { type: "pick-mini-game"; miniGame: MiniGameId }
-  | { type: "next-question" }
-  | { type: "skip-question" }
-  | { type: "reset-session" }
-  | { type: "set-lock"; locked: boolean; passcode?: string }
-  | { type: "update-profile"; name: string; avatarId: string };
-
-/** Messages sent from the party server to a client. */
-export type ServerMessage =
-  | ({ type: "state" } & RoomSnapshot)
-  | { type: "error"; message: string }
-  | { type: "kicked"; reason: string };
