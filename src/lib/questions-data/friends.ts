@@ -42,7 +42,7 @@ export const friendsQuestions: Partial<Record<MiniGameId, Record<Intensity, stri
       "Would you rather always get the last laugh or always have the best comeback ready?",
     ],
     medium: [
-      "Would you rather accidentally send a text about someone to that person, or call your teacher mom or dad in front of the class again?",
+      "Would you rather accidentally send a text about someone to that person, or accidentally call your teacher \"mom\" or \"dad\" in front of the class again?",
       "Would you rather be famous for something embarrassing or never be famous at all?",
       "Would you rather always say what's on your mind or never share an opinion again?",
       "Would you rather find out your best friend talks about you behind your back (nicely) or never know what people say about you?",
