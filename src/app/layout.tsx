@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fredoka, Plus_Jakarta_Sans } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
@@ -58,6 +59,7 @@ export default function RootLayout({
       >
         {children}
         <PwaRegister />
+        <Analytics />
       </body>
     </html>
   );
