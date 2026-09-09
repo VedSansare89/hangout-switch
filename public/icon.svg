@@ -1,0 +1,47 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="256" y1="0" x2="256" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFDF8" />
+      <stop offset="1" stop-color="#F2EBDD" />
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="90" y1="90" x2="330" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6FC1FF" />
+      <stop offset="1" stop-color="#2E86E0" />
+    </linearGradient>
+    <linearGradient id="redGrad" x1="290" y1="300" x2="470" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF7A67" />
+      <stop offset="1" stop-color="#E23F30" />
+    </linearGradient>
+    <radialGradient id="shine" cx="0.32" cy="0.28" r="0.55">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+    <filter id="softShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#B3491F" flood-opacity="0.28" />
+    </filter>
+    <filter id="bubbleShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1D4E8F" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="118" fill="url(#bg)" />
+
+  <g transform="translate(20,16) scale(0.92)">
+    <g filter="url(#bubbleShadow)">
+      <path d="M200 68
+               a145 145 0 1 1 -50.5 281.6
+               C132 372 108 392 78 402
+               c16 -24 22 -46 21 -62
+               a145 145 0 0 1 101 -272 Z"
+            fill="url(#blueGrad)" />
+      <ellipse cx="165" cy="150" rx="95" ry="70" fill="url(#shine)" />
+      <circle cx="163" cy="210" r="20" fill="#ffffff" />
+      <circle cx="243" cy="210" r="20" fill="#ffffff" />
+    </g>
+
+    <g filter="url(#softShadow)">
+      <rect x="288" y="298" width="186" height="104" rx="52" fill="url(#redGrad)" />
+      <circle cx="340" cy="350" r="46" fill="#ffffff" />
+    </g>
+  </g>
+</svg>
