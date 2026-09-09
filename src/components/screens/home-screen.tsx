@@ -1,14 +1,19 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Heart, Info, PartyPopper } from "lucide-react";
+import { Dices, Heart, Info, Moon, PartyPopper, Sparkles, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
-import { Mode } from "@/lib/types";
+import { Intensity, Mode } from "@/lib/types";
 
 interface HomeScreenProps {
   onSelectMode: (mode: Mode) => void;
   onOpenInfo: () => void;
+  onSelectMood: (mode: Mode, intensity: Intensity) => void;
+  onRandomEverything: () => void;
+  onOpenDailyPack: () => void;
+  onCreateRoom: () => void;
+  onJoinRoom: () => void;
 }
 
 const container = {
@@ -24,21 +29,44 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } },
 };
 
-export function HomeScreen({ onSelectMode, onOpenInfo }: HomeScreenProps) {
-  return (
-    <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-rose-400">
-      {/* Decorative blobs */}
-      <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-white/20 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/3 -right-20 h-64 w-64 rounded-full bg-yellow-300/20 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-1/4 h-80 w-80 rounded-full bg-emerald-300/20 blur-3xl" />
+const MOODS: { label: string; icon: typeof Moon; mode: Mode; intensity: Intensity }[] = [
+  { label: "Chill Night", icon: Moon, mode: "friends", intensity: "low" },
+  { label: "Party Night", icon: PartyPopper, mode: "friends", intensity: "medium" },
+  { label: "Date Night", icon: Heart, mode: "couples", intensity: "medium" },
+];
 
-      <button
-        onClick={onOpenInfo}
-        className="pt-safe absolute top-4 right-4 z-20 flex size-10 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-md transition hover:bg-white/25 active:scale-95"
-        aria-label="How to play"
-      >
-        <Info className="size-5" />
-      </button>
+export function HomeScreen({
+  onSelectMode,
+  onOpenInfo,
+  onSelectMood,
+  onRandomEverything,
+  onOpenDailyPack,
+  onCreateRoom,
+  onJoinRoom,
+}: HomeScreenProps) {
+  return (
+    <div className="relative flex min-h-[100dvh] flex-col overflow-x-hidden overflow-y-auto bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-rose-400">
+      {/* Decorative blobs */}
+      <div className="pointer-events-none fixed -top-24 -left-24 h-72 w-72 rounded-full bg-white/20 blur-3xl" />
+      <div className="pointer-events-none fixed top-1/3 -right-20 h-64 w-64 rounded-full bg-yellow-300/20 blur-3xl" />
+      <div className="pointer-events-none fixed bottom-0 left-1/4 h-80 w-80 rounded-full bg-emerald-300/20 blur-3xl" />
+
+      <div className="pt-safe absolute top-4 right-4 z-20 flex gap-2">
+        <button
+          onClick={onOpenDailyPack}
+          className="flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-2.5 text-xs font-semibold text-white backdrop-blur-md transition hover:bg-white/25 active:scale-95"
+        >
+          <Sparkles className="size-4" />
+          Today
+        </button>
+        <button
+          onClick={onOpenInfo}
+          className="flex size-10 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-md transition hover:bg-white/25 active:scale-95"
+          aria-label="How to play"
+        >
+          <Info className="size-5" />
+        </button>
+      </div>
 
       <motion.div
         variants={container}
@@ -89,27 +117,67 @@ export function HomeScreen({ onSelectMode, onOpenInfo }: HomeScreenProps) {
             </span>
             <span className="text-sm font-normal text-neutral-400">Play →</span>
           </Button>
+
+          <Button
+            size="lg"
+            variant="ghost"
+            onClick={onRandomEverything}
+            className="w-full gap-2 text-white hover:bg-white/15"
+          >
+            <Dices className="size-4.5" />
+            Surprise Me — random everything
+          </Button>
         </motion.div>
 
-        <motion.div
-          variants={item}
-          className="mt-12 grid w-full max-w-sm grid-cols-3 gap-3 text-white/90"
-        >
-          {[
-            { n: "1", t: "Pick a mode" },
-            { n: "2", t: "Set intensity" },
-            { n: "3", t: "Take turns" },
-          ].map((s) => (
-            <div
-              key={s.n}
-              className="flex flex-col items-center gap-1.5 rounded-2xl bg-white/10 px-2 py-4 backdrop-blur-md"
+        <motion.div variants={item} className="mt-6 w-full max-w-sm">
+          <div className="mb-2.5 flex items-center gap-2">
+            <span className="h-px flex-1 bg-white/25" />
+            <span className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-white/70 uppercase">
+              <Users className="size-3.5" />
+              Playing on separate phones?
+            </span>
+            <span className="h-px flex-1 bg-white/25" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              size="lg"
+              onClick={onCreateRoom}
+              className="w-full gap-2 bg-white/15 text-white backdrop-blur-md hover:bg-white/25"
             >
-              <span className="font-display flex size-7 items-center justify-center rounded-full bg-white/20 text-sm font-semibold">
-                {s.n}
-              </span>
-              <span className="text-center text-xs leading-tight font-medium">{s.t}</span>
-            </div>
-          ))}
+              Create Room
+            </Button>
+            <Button
+              size="lg"
+              onClick={onJoinRoom}
+              variant="outline"
+              className="w-full gap-2 border-white/30 bg-transparent text-white hover:bg-white/15"
+            >
+              Join Room
+            </Button>
+          </div>
+        </motion.div>
+
+        <motion.div variants={item} className="mt-8 w-full max-w-sm">
+          <p className="mb-2.5 text-xs font-semibold tracking-wide text-white/70 uppercase">
+            Or set the mood
+          </p>
+          <div className="grid grid-cols-3 gap-2.5">
+            {MOODS.map((mood) => {
+              const Icon = mood.icon;
+              return (
+                <button
+                  key={mood.label}
+                  onClick={() => onSelectMood(mood.mode, mood.intensity)}
+                  className="flex flex-col items-center gap-1.5 rounded-2xl bg-white/10 px-2 py-4 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
+                >
+                  <Icon className="size-5" />
+                  <span className="text-center text-[11px] leading-tight font-semibold">
+                    {mood.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </motion.div>
       </motion.div>
 

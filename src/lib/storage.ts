@@ -2,9 +2,17 @@ import { GameState, Screen } from "./types";
 
 const STORAGE_KEY = "hangout-switch:session";
 
+export interface SavedRoomConnect {
+  roomCode: string;
+  name: string;
+  avatarId: string;
+  passcode: string;
+}
+
 interface SavedSession {
   screen: Screen;
   gameState: GameState;
+  roomConnect?: SavedRoomConnect | null;
 }
 
 export function saveSession(session: SavedSession) {

@@ -10,27 +10,16 @@ export function getQuestionPool(
 }
 
 /**
- * Picks a random question from the pool, avoiding recently shown questions
- * when possible. Falls back to the full pool once everything has been seen.
+ * Picks a random question from the pool, avoiding everything already played
+ * this session. Once a pool is fully exhausted it falls back to the full
+ * pool so the game never gets stuck.
  */
-export function pickRandomQuestion(
-  pool: string[],
-  recentlyShown: string[]
-): string | null {
+export function pickRandomQuestion(pool: string[], played: string[]): string | null {
   if (pool.length === 0) return null;
 
-  const unseen = pool.filter((q) => !recentlyShown.includes(q));
+  const playedSet = new Set(played);
+  const unseen = pool.filter((q) => !playedSet.has(q));
   const candidates = unseen.length > 0 ? unseen : pool;
 
   return candidates[Math.floor(Math.random() * candidates.length)];
-}
-
-export const RECENT_HISTORY_LIMIT = 12;
-
-export function pushRecent(history: string[], question: string): string[] {
-  const next = [...history, question];
-  if (next.length > RECENT_HISTORY_LIMIT) {
-    return next.slice(next.length - RECENT_HISTORY_LIMIT);
-  }
-  return next;
 }

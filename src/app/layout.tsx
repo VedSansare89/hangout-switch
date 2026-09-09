@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fredoka, Plus_Jakarta_Sans } from "next/font/google";
 import { PwaRegister } from "@/components/pwa-register";
+import { InstallPrompt } from "@/components/install-prompt";
 import "./globals.css";
 
 const fredoka = Fredoka({
@@ -58,6 +59,7 @@ export default function RootLayout({
       >
         {children}
         <PwaRegister />
+        <InstallPrompt />
       </body>
     </html>
   );

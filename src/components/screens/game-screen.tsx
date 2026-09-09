@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   Dices,
   Heart,
+  History,
   PartyPopper,
   Shield,
   Shuffle,
@@ -22,7 +23,6 @@ import {
 import { TopBar } from "@/components/top-bar";
 import { QuestionCard } from "@/components/question-card";
 import { MiniGamePicker } from "@/components/mini-game-picker";
-import { HostEditor } from "@/components/host-editor";
 import { IntensityDialog } from "@/components/intensity-dialog";
 import { SettingsModal } from "@/components/settings-modal";
 import { getMiniGameById } from "@/lib/mini-games";
@@ -38,7 +38,9 @@ interface GameScreenProps {
   onSkip: () => void;
   onChangeIntensity: (intensity: Intensity) => void;
   onChangeMode: (mode: Mode) => void;
-  onChangeHost: (name: string) => void;
+  onOpenIdentity: () => void;
+  onOpenHistory: () => void;
+  onToggleSound: () => void;
 }
 
 export function GameScreen({
@@ -49,10 +51,11 @@ export function GameScreen({
   onSkip,
   onChangeIntensity,
   onChangeMode,
-  onChangeHost,
+  onOpenIdentity,
+  onOpenHistory,
+  onToggleSound,
 }: GameScreenProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [hostEditorOpen, setHostEditorOpen] = useState(false);
   const [intensityOpen, setIntensityOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [switchModeOpen, setSwitchModeOpen] = useState(false);
@@ -67,9 +70,10 @@ export function GameScreen({
       <div className={cn("bg-gradient-to-r", theme.gradient)}>
         <TopBar
           gameState={gameState}
-          onOpenHostEditor={() => setHostEditorOpen(true)}
+          onOpenHostEditor={onOpenIdentity}
           onOpenIntensity={() => setIntensityOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
+          onToggleSound={onToggleSound}
         />
       </div>
 
@@ -118,7 +122,7 @@ export function GameScreen({
             </Button>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             <ActionChip
               icon={<SlidersHorizontal className="size-4" />}
               label="Intensity"
@@ -132,7 +136,12 @@ export function GameScreen({
             <ActionChip
               icon={<UsersRound className="size-4" />}
               label="New Host"
-              onClick={() => setHostEditorOpen(true)}
+              onClick={onOpenIdentity}
+            />
+            <ActionChip
+              icon={<History className="size-4" />}
+              label="History"
+              onClick={onOpenHistory}
             />
           </div>
         </div>
@@ -145,13 +154,6 @@ export function GameScreen({
         onPick={onPickMiniGame}
         onRandom={onRandomMiniGame}
         currentMiniGame={gameState.currentMiniGame}
-      />
-
-      <HostEditor
-        hostName={gameState.hostName}
-        onChange={onChangeHost}
-        open={hostEditorOpen}
-        onOpenChange={setHostEditorOpen}
       />
 
       <IntensityDialog

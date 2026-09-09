@@ -1,9 +1,10 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IntensitySelector } from "@/components/intensity-selector";
+import { AvatarBadge } from "@/components/avatar-badge";
 import { getIntensityDef, intensityTheme } from "@/lib/intensity";
 import { modeTheme } from "@/lib/mode-theme";
 import { Intensity, Mode } from "@/lib/types";
@@ -12,8 +13,11 @@ import { cn } from "@/lib/utils";
 interface SetupScreenProps {
   mode: Mode;
   intensity: Intensity;
+  hostName: string;
+  hostAvatarId: string;
   onChangeMode: (mode: Mode) => void;
   onChangeIntensity: (intensity: Intensity) => void;
+  onOpenIdentity: () => void;
   onStart: () => void;
   onBack: () => void;
 }
@@ -21,8 +25,11 @@ interface SetupScreenProps {
 export function SetupScreen({
   mode,
   intensity,
+  hostName,
+  hostAvatarId,
   onChangeMode,
   onChangeIntensity,
+  onOpenIdentity,
   onStart,
   onBack,
 }: SetupScreenProps) {
@@ -128,6 +135,22 @@ export function SetupScreen({
         </AnimatePresence>
 
         <div className="flex-1" />
+
+        <button
+          onClick={onOpenIdentity}
+          className="mb-4 flex items-center gap-3 rounded-2xl border-2 border-black/5 bg-white/70 px-4 py-3 text-left transition active:scale-[0.98] dark:border-white/10 dark:bg-white/5"
+        >
+          <AvatarBadge avatarId={hostAvatarId} size="md" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+              Playing as
+            </span>
+            <span className="block truncate text-sm font-semibold text-neutral-800 dark:text-neutral-100">
+              {hostName || "Tap to enter your name"}
+            </span>
+          </span>
+          <Pencil className="size-4 shrink-0 text-neutral-400" />
+        </button>
 
         <Button
           size="xl"

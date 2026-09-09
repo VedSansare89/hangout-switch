@@ -40,10 +40,18 @@ export interface GameState {
   mode: Mode;
   intensity: Intensity;
   hostName: string;
+  hostAvatarId: string;
   round: number;
   currentMiniGame: MiniGameId | null;
   currentQuestion: string | null;
-  recentQuestions: string[];
+  playedQuestions: string[];
+  soundEnabled: boolean;
 }
 
-export type Screen = "home" | "setup" | "game";
+export type Screen =
+  | "home"
+  | "setup"
+  | "game"
+  | "create-room"
+  | "join-room"
+  | "room";

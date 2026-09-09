@@ -1,6 +1,6 @@
 "use client";
 
-import { Hand, Shield, Sparkles, Users } from "lucide-react";
+import { Hand, Share2, Shield, Sparkles, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -96,6 +96,22 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 Not vibing with a question? Tap Skip any time, no explanation
                 needed. Everyone&apos;s comfort comes first — that&apos;s the
                 whole point of the game.
+              </p>
+            </div>
+          </section>
+
+          <section className="flex gap-3">
+            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300">
+              <Share2 className="size-4" />
+            </span>
+            <div>
+              <p className="font-display font-semibold text-neutral-900 dark:text-neutral-50">
+                Playing on separate phones?
+              </p>
+              <p>
+                Create a Room to get a shareable code and link. Everyone who
+                joins sees the same question at the same time, and only the
+                Host can change the mode, intensity, or mini-game.
               </p>
             </div>
           </section>
